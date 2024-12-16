@@ -14,17 +14,10 @@ public class UserDao {
 
 	public int insert(UserVo vo) {
 		int result = 0;
-		ResultSet rs = null;
-		Connection conn = null;
-		PreparedStatement pstmt = null;
-		PreparedStatement pstmt2 = null;
 
-		try {
-			conn = getConnection();
-
-			String sql = "insert into user values (null, ?, ?, ?, ?) ";
-			pstmt = conn.prepareStatement(sql);
-
+		try (Connection conn = getConnection();
+				PreparedStatement pstmt = conn.prepareStatement("insert into user values (null, ?, ?, ?, ?) ");
+				PreparedStatement pstmt2 = conn.prepareStatement("select last_insert_id() from dual");) {
 			pstmt.setString(1, vo.getName());
 			pstmt.setString(2, vo.getEmail());
 			pstmt.setString(3, vo.getPassword());
@@ -32,24 +25,11 @@ public class UserDao {
 
 			result = pstmt.executeUpdate();
 
-			String sql2 = "select last_insert_id() from dual";
-			pstmt2 = conn.prepareStatement(sql2);
-
-			rs = pstmt2.executeQuery();
-			if (rs.next())
-				vo.setNo(rs.getLong(1));
-
+			ResultSet rs = pstmt2.executeQuery();
+			vo.setNo(rs.next() ? rs.getLong(1) : null);
+			rs.close();
 		} catch (SQLException e) {
 			System.out.println("error: " + e);
-		} finally {
-			try {
-				if (pstmt != null)
-					pstmt.close();
-				if (conn != null)
-					conn.close();
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
 		}
 
 		return result;
@@ -57,17 +37,12 @@ public class UserDao {
 
 	public List<UserVo> findAll() {
 		List<UserVo> result = new ArrayList<>();
-		Connection conn = null;
-		PreparedStatement pstmt = null;
-		ResultSet rs = null;
 
-		try {
-			conn = getConnection();
+		try (Connection conn = getConnection();
+				PreparedStatement pstmt = conn
+						.prepareStatement("select no, name, email, password, phone from user order by no desc");) {
 
-			String sql = "select no, name, email, password, phone from user order by no desc";
-			pstmt = conn.prepareStatement(sql);
-
-			rs = pstmt.executeQuery();
+			ResultSet rs = pstmt.executeQuery();
 
 			while (rs.next()) {
 				Long no = rs.getLong(1);
@@ -86,26 +61,26 @@ public class UserDao {
 				result.add(vo);
 			}
 
+			rs.close();
 		} catch (SQLException e) {
 			System.out.println("드라이버 로딩 실패: " + e);
-		} finally {
-			try {
-				if (rs != null) {
-					rs.close();
-				}
-				if (pstmt != null) {
-					pstmt.close();
-				}
-				if (conn != null) {
-					conn.close();
-				}
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-
 		}
 
 		return result;
+	}
+
+	public void deleteByNo(Long no) {
+
+		try (Connection conn = getConnection();
+				PreparedStatement pstmt = conn.prepareStatement("delete from user where no = ?");) {
+
+			pstmt.setLong(1, no);
+			pstmt.executeUpdate();
+
+		} catch (SQLException e) {
+			System.out.println("드라이버 로딩 실패: " + e);
+		}
+
 	}
 
 	public static Connection getConnection() throws SQLException {
@@ -123,34 +98,4 @@ public class UserDao {
 		return conn;
 	}
 
-	public void deleteByNo(Long no) {
-		Connection conn = null;
-		PreparedStatement pstmt = null;
-
-		try {
-			conn = getConnection();
-
-			String sql = "delete from user where no = ?";
-			pstmt = conn.prepareStatement(sql);
-
-			pstmt.setLong(1, no);
-			pstmt.executeUpdate();
-
-		} catch (SQLException e) {
-			System.out.println("드라이버 로딩 실패: " + e);
-		} finally {
-			try {
-				if (pstmt != null) {
-					pstmt.close();
-				}
-				if (conn != null) {
-					conn.close();
-				}
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
-
-		}
-
-	}
 }

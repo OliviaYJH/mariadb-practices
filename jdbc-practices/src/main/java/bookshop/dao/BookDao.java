@@ -48,15 +48,32 @@ public class BookDao {
 
 	public int update(Long id, String status) {
 		int count = 0;
+		Connection conn = null;
+		PreparedStatement pstmt = null;
 
-		try (Connection conn = getConnection();
-				PreparedStatement pstmt = conn.prepareStatement("update book set status = ? where id = ?");) {
+		try {
+			conn = getConnection();
+			conn.setAutoCommit(false);
+
+			pstmt = conn.prepareStatement("update book set status = ? where id = ?");
 			pstmt.setString(1, status);
 			pstmt.setLong(2, id);
 			count = pstmt.executeUpdate();
 
 		} catch (SQLException e) {
 			System.out.println("error:" + e);
+			try {
+				conn.rollback();
+			} catch (SQLException ignore) {
+
+			}
+		} finally {
+			try {
+				conn.commit();
+				pstmt.close();
+				conn.close();
+			} catch (SQLException ignore) {
+			}
 		}
 
 		return count;
@@ -66,23 +83,22 @@ public class BookDao {
 	public List<BookVo> findAll() {
 		List<BookVo> result = new ArrayList<>();
 
-		try (
-				Connection conn = getConnection(); 
-				PreparedStatement pstmt = conn.prepareStatement("select a.id, a.title, b.name, a.status from book a join author b on a.author_id = b.id")
-		) {
+		try (Connection conn = getConnection();
+				PreparedStatement pstmt = conn.prepareStatement(
+						"select a.id, a.title, b.name, a.status from book a join author b on a.author_id = b.id")) {
 			ResultSet rs = pstmt.executeQuery();
 			while (rs.next()) {
 				Long id = rs.getLong(1);
 				String title = rs.getString(2);
 				String authorName = rs.getString(3);
 				String status = rs.getString(4);
-				
+
 				BookVo vo = new BookVo();
 				vo.setId(id);
 				vo.setTitle(title);
 				vo.setAuthorName(authorName);
 				vo.setStatus(status);
-				
+
 				result.add(vo);
 			}
 			rs.close();
